@@ -319,7 +319,7 @@
       padding: 20px; z-index: 50;
     }
     .modal {
-      width: min(640px, 100%);
+      width: min(800px, 100%);
       max-height: 85vh; overflow-y: auto;
       background: var(--panel2);
       border: 1px solid var(--line2);
@@ -791,7 +791,7 @@ const MIN_SHIFT_MINUTES = 30;
 // Activity requirement: 1 shift per month = 30 min
 const MONTHLY_MIN_MS = MIN_SHIFT_MINUTES * 60 * 1000;
 
-const FIXED_ROLES = ["Dancer","Security","Bartender","DJ","Supervisor+"];
+const FIXED_ROLES = ["Dancer","Security","Bartender","DJ"];
 const VENUES = ["Paradise Lounge","Wiwang Sky Bar","Black Woods Saloon","The Handlebar","Yellow Jack","Split Sides Comedy Club","Tequi-La-La","Maisonette 10","Bahama Mamas","Vanilla Unicorn"];
 const RANKS = ["Employee","Senior Employee","Supervisor","Manager","Director"];
 const MGMT_RANKS = ["Supervisor","Manager","Director"];
@@ -2261,8 +2261,8 @@ function renderReviewPage(){
   }
 
   let html='';
-  // Point system legend
-  html+=`<div style="padding:12px;border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px;background:var(--panel2)">
+  // Point system legend (EOTM tab only)
+  if(tab==='eotm') html+=`<div style="padding:12px;border:1px solid var(--line);border-radius:var(--r);margin-bottom:12px;background:var(--panel2)">
     <div style="font-weight:700;font-size:12px;margin-bottom:6px;color:var(--accent)">Scoring System</div>
     <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--muted)">
       <span><b style="color:var(--text)">+1</b> per hour worked</span>
@@ -2276,10 +2276,10 @@ function renderReviewPage(){
 
   if(tab==='eotm'){
     html+=`<div class="hint" style="margin-bottom:10px"><b>Top 10</b> by performance score. Strikes/suspensions disqualify. Management excluded.</div>`;
-    html+=eotm.length?eotm.map(x=>card(x,true,false)).join(''):`<div class="muted">No candidates yet.</div>`;
+    html+=eotm.length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px">`+eotm.map(x=>card(x,true,false)).join('')+`</div>`:`<div class="muted">No candidates yet.</div>`;
   } else if(tab==='promo'){
     html+=`<div class="hint" style="margin-bottom:10px"><b>Eligible</b> for promotion — met shift minimum, no strikes/suspensions. Managers/Supervisors use Leadership profiles.</div>`;
-    html+=promos.length?promos.map(x=>card(x,false,true)).join(''):`<div class="muted">No one meets the baseline yet.</div>`;
+    html+=promos.length?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px">`+promos.map(x=>card(x,false,true)).join('')+`</div>`:`<div class="muted">No one meets the baseline yet.</div>`;
   }
 
   $("#reviewBody").innerHTML=html;
@@ -2669,18 +2669,99 @@ function openMgmtDayDetail(dayKey,evts){
 
     if(me.ledBy) html+=`<div style="margin-bottom:6px"><span class="muted">Led by:</span> <b>${personLink(me.ledBy)}</b></div>`;
 
-    // Opening: show roster
+    // Opening: show tabbed roster
     if(me.type==='event' && me.roster && me.roster.length){
-      html+=`<div class="muted small" style="font-weight:700;margin-bottom:4px">Roster</div>`;
+      const rosterByRole={Security:[],Dancer:[],Bartender:[],DJ:[]};
       for(const r of me.roster){
-        const rVuStreak=consecutiveVuDancerCount(r.personId);
-        const rVuWarn=rVuStreak>=3;
-        html+=`<div style="padding:6px 8px;border:1px solid ${rVuWarn?'var(--bad-border)':'var(--line)'};border-radius:8px;background:${rVuWarn?'var(--bad-dim)':'var(--panel)'};margin-bottom:4px">
-          <div style="display:flex;justify-content:space-between;align-items:center"><b>${personLink(r.personId)}</b><div style="display:flex;gap:6px;align-items:center">${rVuWarn?`<span style="font-size:9px;font-weight:700;color:var(--bad)">⚠ ${rVuStreak} VU Dancer</span>`:''}<span class="muted">${escapeHtml(r.role||'—')}</span></div></div>
-          ${r.positives?`<div style="margin-top:3px;color:var(--good)"><span style="font-size:10px;font-weight:700">POSITIVE:</span> ${escapeHtml(r.positives)}</div>`:''}
-          ${r.improvements?`<div style="margin-top:2px;color:var(--warn)"><span style="font-size:10px;font-weight:700">IMPROVE:</span> ${escapeHtml(r.improvements)}</div>`:''}
-        </div>`;
+        const role=r.role||'Security';
+        if(!rosterByRole[role]) rosterByRole[role]=[];
+        rosterByRole[role].push(r);
       }
+      const withFeedback=me.roster.filter(r=>r.positives||r.improvements);
+      const roleNotes=me.roleNotes||{};
+      const meId=me.id;
+      const tabId='ddtab_'+meId.replace(/[^a-zA-Z0-9]/g,'');
+      const roleTabColors={Security:'#cc7a6a',Dancer:'#e8c96e',Bartender:'#6ec0cc',DJ:'#9988bb',Feedback:'#6aaa6a'};
+      const ddTabs=[...FIXED_ROLES,'Feedback'];
+
+      html+=`<div style="border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:10px">`;
+      // Tab bar
+      html+=`<div style="display:flex;border-bottom:1px solid var(--line)">`;
+      for(const t of ddTabs){
+        const isFb=t==='Feedback';
+        const cnt=isFb?withFeedback.length:(rosterByRole[t]?.length||0);
+        const col=roleTabColors[t];
+        html+=`<button data-dd-tab="${escapeHtml(tabId)}" data-dd-tab-name="${escapeHtml(t)}" style="flex:1;padding:10px 6px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--muted);cursor:pointer;font-size:12px;font-weight:700;font-family:inherit" data-dd-tab-color="${col}">${escapeHtml(t)} <span style="opacity:.5;font-size:10px">(${cnt})</span></button>`;
+      }
+      html+=`</div>`;
+
+      // Tab content wrapper
+      for(const t of ddTabs){
+        const isFb=t==='Feedback';
+        html+=`<div data-dd-panel="${escapeHtml(tabId)}" data-dd-panel-name="${escapeHtml(t)}" style="display:none">`;
+
+        if(!isFb){
+          // Role overall
+          if(roleNotes[t]){
+            html+=`<div style="padding:12px 16px;border-bottom:1px solid var(--line);background:${roleTabColors[t]}08">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+                <div style="width:6px;height:6px;border-radius:50%;background:${roleTabColors[t]}"></div>
+                <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${roleTabColors[t]}">${escapeHtml(t)} Overall</span>
+              </div>
+              <div style="font-size:12px;color:var(--text);line-height:1.5">${escapeHtml(roleNotes[t])}</div>
+            </div>`;
+          }
+
+          // People in this role
+          const roleRoster=rosterByRole[t]||[];
+          html+=`<div style="padding:10px 16px;background:rgba(201,168,76,.03)">
+            <div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">${escapeHtml(t)} · ${roleRoster.length}</div>`;
+          for(const r of roleRoster){
+            const rVuStreak=consecutiveVuDancerCount(r.personId);
+            const rVuWarn=rVuStreak>=3;
+            const rCol=roleTabColors[r.role||'Security']||'var(--muted)';
+            html+=`<div style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px">
+              <div style="display:flex;justify-content:space-between"><span style="font-weight:600">${personLink(r.personId)} <span style="color:var(--muted);font-weight:400">(${escapeHtml(getPerson(r.personId)?.rank||'—')})</span>${rVuWarn?`<span style="color:var(--bad);font-size:10px;font-weight:700"> ⚠ ${rVuStreak} VU</span>`:''}</span><span style="color:${rCol};font-size:11px;font-weight:600">${escapeHtml(r.role||'—')}</span></div>
+              ${r.positives?`<div style="font-size:11px;color:var(--good);margin-top:2px">POSITIVE: ${escapeHtml(r.positives)}</div>`:''}
+              ${r.improvements?`<div style="font-size:11px;color:var(--warn);margin-top:1px">IMPROVE: ${escapeHtml(r.improvements)}</div>`:''}
+            </div>`;
+          }
+          html+=`</div>`;
+
+        } else {
+          // Feedback tab
+          html+=`<div style="padding:14px 16px">`;
+          // Role overalls with content
+          const rolesWithNotes=FIXED_ROLES.filter(r=>roleNotes[r]);
+          if(rolesWithNotes.length){
+            html+=`<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px">Role Overalls</div>`;
+            for(const r of rolesWithNotes){
+              html+=`<div style="padding:10px 14px;margin-bottom:6px;background:${roleTabColors[r]}08;border:1px solid ${roleTabColors[r]}25;border-radius:10px">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><div style="width:6px;height:6px;border-radius:50%;background:${roleTabColors[r]}"></div><span style="font-size:10px;font-weight:700;color:${roleTabColors[r]};text-transform:uppercase;letter-spacing:.5px">${escapeHtml(r)} Overall</span></div>
+                <div style="font-size:12px;color:var(--text);line-height:1.5">${escapeHtml(roleNotes[r])}</div>
+              </div>`;
+            }
+          }
+          // Individual feedback
+          if(withFeedback.length){
+            html+=`<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;${rolesWithNotes.length?'margin-top:12px':''}">Individual Feedback</div>`;
+            for(const r of withFeedback){
+              const rCol=roleTabColors[r.role||'Security']||'var(--muted)';
+              html+=`<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+                <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px;font-weight:700">${personLink(r.personId)} <span style="color:var(--muted);font-weight:400;font-size:12px">(${escapeHtml(getPerson(r.personId)?.rank||'—')})</span></span><span style="color:${rCol};font-size:11px;font-weight:700">${escapeHtml(r.role||'—')}</span></div>
+                ${r.positives?`<div style="font-size:12px;color:var(--good);margin-top:4px">POSITIVE: ${escapeHtml(r.positives)}</div>`:''}
+                ${r.improvements?`<div style="font-size:12px;color:var(--warn);margin-top:2px">IMPROVE: ${escapeHtml(r.improvements)}</div>`:''}
+              </div>`;
+            }
+          }
+          if(!withFeedback.length&&!rolesWithNotes.length){
+            html+=`<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">No feedback given yet</div>`;
+          }
+          html+=`</div>`;
+        }
+        html+=`</div>`;
+      }
+      html+=`</div>`;
     }
 
     // Training: show tagged people
@@ -2706,13 +2787,45 @@ function openMgmtDayDetail(dayKey,evts){
     if(!me.roster && me.attendees?.length){
       html+=`<div><span class="muted">Attended:</span> ${me.attendees.map(id=>personLink(id)).join(', ')}</div>`;
     }
-    if(me.note) html+=`<div style="margin-top:4px;white-space:pre-wrap">${escapeHtml(me.note)}</div>`;
+    if(me.note) html+=`<div style="margin-top:10px;border:1px solid rgba(201,168,76,.25);border-radius:12px;overflow:hidden">
+      <div style="padding:10px 14px;border-bottom:1px solid rgba(201,168,76,.15);background:linear-gradient(135deg,rgba(201,168,76,.06),transparent);display:flex;align-items:center;gap:8px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#c9a84c" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
+        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--accent)">Side Notes</span>
+      </div>
+      <div style="padding:12px 14px;font-size:12px;line-height:1.6;white-space:pre-wrap">${escapeHtml(me.note)}</div>
+    </div>`;
 
     html+=`</div></div>`;
   }
 
   openModal("Day Details",html);
   wireProfileLinks();
+
+  // Wire tabbed roster tabs
+  document.querySelectorAll('[data-dd-tab]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const group=btn.getAttribute('data-dd-tab');
+      const tabName=btn.getAttribute('data-dd-tab-name');
+      // Update tab buttons
+      document.querySelectorAll(`[data-dd-tab="${group}"]`).forEach(b=>{
+        const isActive=b.getAttribute('data-dd-tab-name')===tabName;
+        const col=b.getAttribute('data-dd-tab-color');
+        b.style.borderBottomColor=isActive?col:'transparent';
+        b.style.background=isActive?'rgba(201,168,76,.04)':'transparent';
+        b.style.color=isActive?'var(--text)':'var(--muted)';
+      });
+      // Show/hide panels
+      document.querySelectorAll(`[data-dd-panel="${group}"]`).forEach(p=>{
+        p.style.display=p.getAttribute('data-dd-panel-name')===tabName?'':'none';
+      });
+    });
+  });
+  // Auto-click first tab in each group
+  const seenGroups=new Set();
+  document.querySelectorAll('[data-dd-tab]').forEach(btn=>{
+    const g=btn.getAttribute('data-dd-tab');
+    if(!seenGroups.has(g)){seenGroups.add(g);btn.click();}
+  });
 
   document.querySelectorAll('[data-edit-mgmt]').forEach(btn=>{
     btn.addEventListener('click',()=>{
@@ -2807,21 +2920,19 @@ function openMgmtEventModal(existing, prefillDate){
 
   function rosterCard(pid,role,positives,improvements){
     const p=getPerson(pid); if(!p) return '';
-    const rOpts=FIXED_ROLES.map(r=>`<option value="${escapeHtml(r)}" ${r===role?'selected':''}>${escapeHtml(r)}</option>`).join('');
-    const hasContent=!!(role||positives||improvements);
-    const roleLabel=role||'No role';
+    const hasContent=!!(positives||improvements);
+    const roleLabel=role||'—';
     const vuDancerStreak=consecutiveVuDancerCount(pid);
     const vuWarn=vuDancerStreak>=3;
     return `<div class="roster-card" data-roster-pid="${escapeHtml(pid)}" style="border:1px solid ${vuWarn?'var(--bad-border)':'var(--line)'};border-radius:var(--r);margin-bottom:6px;overflow:hidden">
       <div style="padding:6px 10px;background:${vuWarn?'var(--bad-dim)':'var(--surface)'};display:flex;justify-content:space-between;align-items:center;cursor:pointer" data-roster-toggle="${escapeHtml(pid)}">
-        <span style="font-weight:700;font-size:12px">${escapeHtml(p.character||p.steamName||'Unknown')}<span class="muted" style="font-weight:400"> \u00b7 ${escapeHtml(p.rank||'\u2014')}</span>${hasContent?`<span class="muted" style="font-weight:400;font-size:10px"> \u00b7 ${escapeHtml(roleLabel)}</span>`:''}${vuWarn?`<span style="color:var(--bad);font-size:10px;font-weight:700"> \u00b7 ⚠ ${vuDancerStreak} VU Dancer</span>`:''}</span>
+        <span style="font-weight:700;font-size:12px">${escapeHtml(p.character||p.steamName||'Unknown')}<span class="muted" style="font-weight:400"> \u00b7 ${escapeHtml(p.rank||'\u2014')}</span>${vuWarn?`<span style="color:var(--bad);font-size:10px;font-weight:700"> \u00b7 ⚠ ${vuDancerStreak} VU Dancer</span>`:''}</span>
         <div style="display:flex;gap:4px;align-items:center">
           <span class="muted" style="font-size:10px" data-roster-arrow="${escapeHtml(pid)}">\u25bc</span>
           <button class="btn-ghost btn-sm" data-roster-remove="${escapeHtml(pid)}" style="padding:2px 6px">\u2715</button>
         </div>
       </div>
       <div data-roster-body="${escapeHtml(pid)}" style="padding:8px 10px;display:none;flex-direction:column;gap:6px">
-        <div style="display:flex;gap:8px;align-items:center"><span class="muted small" style="min-width:50px">Role</span><select data-roster-role="${escapeHtml(pid)}" style="flex:1;padding:4px 8px;font-size:12px"><option value="">\u2014</option>${rOpts}</select></div>
         <div style="display:flex;gap:8px;align-items:flex-start"><span class="muted small" style="min-width:50px;padding-top:6px">Positives</span><textarea data-roster-pos="${escapeHtml(pid)}" rows="2" placeholder="What went well..." style="flex:1;font-size:12px;padding:4px 8px;min-height:32px">${escapeHtml(positives||'')}</textarea></div>
         <div style="display:flex;gap:8px;align-items:flex-start"><span class="muted small" style="min-width:50px;padding-top:6px">Improve</span><textarea data-roster-imp="${escapeHtml(pid)}" rows="2" placeholder="What needs work..." style="flex:1;font-size:12px;padding:4px 8px;min-height:32px">${escapeHtml(improvements||'')}</textarea></div>
       </div>
@@ -2878,14 +2989,11 @@ function openMgmtEventModal(existing, prefillDate){
       <div><div class="muted small">Venue</div><select id="me_venueTitle"><option value="">— Select —</option>${VENUES.map(v=>`<option value="${escapeHtml(v)}" ${v===venueTitleVal?'selected':''}>${escapeHtml(v)}</option>`).join('')}<option value="__custom" ${venueTitleVal&&!VENUES.includes(venueTitleVal)?'selected':''}>Other...</option></select><input id="me_venueTitleCustom" placeholder="Custom venue..." style="margin-top:4px;${venueTitleVal&&!VENUES.includes(venueTitleVal)?'':'display:none'}" value="${escapeHtml(venueTitleVal&&!VENUES.includes(venueTitleVal)?venueTitleVal:'')}"/></div>
       <div><div class="muted small">Status</div><label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-top:4px;cursor:pointer"><input type="checkbox" id="me_cancelled" ${cancelledVal?'checked':''}/> Cancelled</label></div></div>
       <div style="margin-top:10px"><div class="muted small" style="font-weight:700;margin-bottom:6px">Opening Roster</div>
-        <div id="me_roster">${rosterHtml}</div>
-        <div style="display:flex;gap:6px;margin-top:4px">
-          <div class="ac-wrap" style="flex:1"><input id="me_addRoster" placeholder="Type name to tag staff..." style="width:100%;font-size:12px"/></div>
-          <select id="me_rosterRoleSelect" style="font-size:11px;padding:3px 8px;width:130px">
-            <option value="">— Role</option>
-            ${FIXED_ROLES.map(r=>`<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('')}
-          </select>
+        <div style="border:1px solid var(--line);border-radius:var(--r);overflow:hidden">
+          <div style="display:flex;border-bottom:1px solid var(--line)" id="me_rosterTabs"></div>
+          <div id="me_rosterTabPanels"></div>
         </div>
+        <div id="me_roster" style="display:none">${rosterHtml}</div>
       </div>
     </div>
     <div id="me_training_fields" style="margin-top:10px;${typeVal==='training'?'':'display:none'}">
@@ -2960,11 +3068,64 @@ function openMgmtEventModal(existing, prefillDate){
     }
     wireRemove();
   });
-  setupAutocomplete('me_addRoster',allPeople,(pid)=>{
-    const preRole=document.getElementById('me_rosterRoleSelect')?.value||'';
-    document.getElementById('me_roster').insertAdjacentHTML('beforeend',rosterCard(pid,preRole,'',''));
-    wireRemove();
-  });
+  // Build tabbed roster UI
+  (function initTabbedRoster(){
+    const roleColors={Security:'#cc7a6a',Dancer:'#e8c96e',Bartender:'#6ec0cc',DJ:'#9988bb'};
+    const existingRoleNotes=isEdit?(existing.roleNotes||{}):{};
+    const tabBar=document.getElementById('me_rosterTabs');
+    const panelHost=document.getElementById('me_rosterTabPanels');
+    if(!tabBar||!panelHost) return;
+    // Group existing roster by role
+    const byRole={};FIXED_ROLES.forEach(r=>byRole[r]=[]);
+    rosterData.forEach(r=>{const role=r.role||'Security';if(!byRole[role])byRole[role]=[];byRole[role].push(r);});
+    // Build tabs
+    tabBar.innerHTML=FIXED_ROLES.map((r,i)=>{
+      const cnt=byRole[r].length;
+      return `<button data-me-rtab="${escapeHtml(r)}" data-me-rtab-color="${roleColors[r]}" style="flex:1;padding:8px 6px;border:none;border-bottom:${i===0?'2px solid '+roleColors[r]:'2px solid transparent'};background:${i===0?'rgba(201,168,76,.04)':'transparent'};color:${i===0?'var(--text)':'var(--muted)'};cursor:pointer;font-size:11px;font-weight:700;font-family:inherit">${escapeHtml(r)} <span style="opacity:.5;font-size:10px">(${cnt})</span></button>`;
+    }).join('');
+    // Build panels
+    panelHost.innerHTML=FIXED_ROLES.map((r,i)=>`<div data-me-rpanel="${escapeHtml(r)}" style="${i>0?'display:none':''}">
+      <div style="padding:10px 12px;border-bottom:1px solid var(--line)"><div class="ac-wrap"><input id="me_radd_${r}" placeholder="Tag ${r.toLowerCase()}..." style="width:100%;font-size:12px;padding:6px 10px"/></div></div>
+      <div style="padding:10px 12px;border-bottom:1px solid var(--line);background:${roleColors[r]}08">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><div style="width:6px;height:6px;border-radius:50%;background:${roleColors[r]}"></div><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:${roleColors[r]}">${escapeHtml(r)} Overall</span></div>
+        <textarea data-me-rolenote="${escapeHtml(r)}" rows="2" placeholder="Overall ${r.toLowerCase()} notes..." style="width:100%;padding:8px 10px;background:#141414;border:1px solid ${roleColors[r]}30;border-radius:8px;color:var(--text);font-size:12px;font-family:inherit;resize:vertical;outline:none;line-height:1.5">${escapeHtml(existingRoleNotes[r]||'')}</textarea>
+      </div>
+      <div data-me-rlist="${escapeHtml(r)}" style="padding:6px 12px">${byRole[r].map(x=>rosterCard(x.personId,x.role,x.positives,x.improvements)).join('')}</div>
+    </div>`).join('');
+    // Wire tabs
+    document.querySelectorAll('[data-me-rtab]').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const role=btn.getAttribute('data-me-rtab');
+        document.querySelectorAll('[data-me-rtab]').forEach(b=>{
+          const isActive=b.getAttribute('data-me-rtab')===role;
+          const col=b.getAttribute('data-me-rtab-color');
+          b.style.borderBottomColor=isActive?col:'transparent';
+          b.style.background=isActive?'rgba(201,168,76,.04)':'transparent';
+          b.style.color=isActive?'var(--text)':'var(--muted)';
+        });
+        document.querySelectorAll('[data-me-rpanel]').forEach(p=>{p.style.display=p.getAttribute('data-me-rpanel')===role?'':'none';});
+      });
+    });
+    function updateTabCounts(){
+      FIXED_ROLES.forEach(r=>{
+        const list=document.querySelector(`[data-me-rlist="${r}"]`);
+        const cnt=list?list.querySelectorAll('.roster-card').length:0;
+        const tab=document.querySelector(`[data-me-rtab="${r}"]`);
+        if(tab) tab.innerHTML=`${escapeHtml(r)} <span style="opacity:.5;font-size:10px">(${cnt})</span>`;
+      });
+    }
+    // Wire per-role autocomplete
+    FIXED_ROLES.forEach(r=>{
+      setupAutocomplete('me_radd_'+r,allPeople,(pid)=>{
+        // Check not already tagged in any role
+        const allTagged=new Set();
+        document.querySelectorAll('[data-me-rlist] .roster-card').forEach(c=>allTagged.add(c.getAttribute('data-roster-pid')));
+        if(allTagged.has(pid)){toast('Already tagged');return;}
+        const listDiv=document.querySelector(`[data-me-rlist="${r}"]`);
+        if(listDiv){listDiv.insertAdjacentHTML('beforeend',rosterCard(pid,r,'',''));wireRemove();updateTabCounts();}
+      });
+    });
+  })();
   // Training: attended by (Senior+)
   setupAutocomplete('me_addAttended',allPeople.filter(p=>isSeniorPlus(p.rank)),(pid)=>{document.getElementById('me_attendedTags').insertAdjacentHTML('beforeend',' '+tagPill(pid,'attended'));wireRemove();});
   // Training: single trainee box with role picker
@@ -2997,13 +3158,17 @@ function openMgmtEventModal(existing, prefillDate){
     const tRole=document.getElementById('me_trainRole')?.value||'';
 
     const roster=[];
-    document.querySelectorAll('.roster-card').forEach(card=>{
-      const pid=card.getAttribute('data-roster-pid');
-      const role=card.querySelector(`[data-roster-role="${CSS.escape(pid)}"]`)?.value||'';
-      const positives=(card.querySelector(`[data-roster-pos="${CSS.escape(pid)}"]`)?.value||'').trim();
-      const improvements=(card.querySelector(`[data-roster-imp="${CSS.escape(pid)}"]`)?.value||'').trim();
-      roster.push({personId:pid,role,positives,improvements});
-    });
+    // Collect from tabbed roster panels
+    for(const role of FIXED_ROLES){
+      const listDiv=document.querySelector(`[data-me-rlist="${role}"]`);
+      if(!listDiv) continue;
+      listDiv.querySelectorAll('.roster-card').forEach(card=>{
+        const pid=card.getAttribute('data-roster-pid');
+        const positives=(card.querySelector(`[data-roster-pos="${CSS.escape(pid)}"]`)?.value||'').trim();
+        const improvements=(card.querySelector(`[data-roster-imp="${CSS.escape(pid)}"]`)?.value||'').trim();
+        roster.push({personId:pid,role,positives,improvements});
+      });
+    }
     function collectTags(g){return [...document.querySelectorAll(`[data-tag-group="${g}"]`)].map(el=>el.getAttribute('data-tag-pid'));}
     const tAttended=type==='training'?collectTags('attended'):collectTags('iattended');
     const tRoleTrainees={};
@@ -3028,18 +3193,21 @@ function openMgmtEventModal(existing, prefillDate){
     const ledBy=ledByPills.length?ledByPills[0]:'';
 
     const storeType=type==='opening'?'event':type;
+    // Collect role overall notes
+    const roleNotes={};
+    FIXED_ROLES.forEach(r=>{const ta=document.querySelector(`[data-me-rolenote="${r}"]`);if(ta&&ta.value.trim())roleNotes[r]=ta.value.trim();});
     let mgmtId;
     if(existing){
       mgmtId=existing.id;
       Object.assign(existing,{dateISO:iso,type:storeType,eventTime:evTime,note,venueType,venueTitle,roster,ledBy,cancelled,attendedBy:tAttended,roleTrainees:tRoleTrainees,
-        taggedSupers:tSupers,taggedSeniors:tSeniors,taggedTrainees:tTrainees,taggedInterviewees:tInterviewees,trainingRole:tRole});
+        taggedSupers:tSupers,taggedSeniors:tSeniors,taggedTrainees:tTrainees,taggedInterviewees:tInterviewees,trainingRole:tRole,roleNotes});
       state.calendarEvents=(state.calendarEvents||[]).filter(ce=>ce.mgmtSourceId!==mgmtId);
       state.entries=(state.entries||[]).filter(e=>e.mgmtSourceId!==mgmtId);
     } else {
       mgmtId=uid();
       state.mgmtEvents||=[];
       state.mgmtEvents.push({id:mgmtId,dateISO:iso,type:storeType,eventTime:evTime,note,venueType,venueTitle,roster,ledBy,cancelled,attendedBy:tAttended,roleTrainees:tRoleTrainees,
-        taggedSupers:tSupers,taggedSeniors:tSeniors,taggedTrainees:tTrainees,taggedInterviewees:tInterviewees,trainingRole:tRole});
+        taggedSupers:tSupers,taggedSeniors:tSeniors,taggedTrainees:tTrainees,taggedInterviewees:tInterviewees,trainingRole:tRole,roleNotes});
     }
     state.calendarEvents||=[];
     if(type==='opening' && !cancelled){
