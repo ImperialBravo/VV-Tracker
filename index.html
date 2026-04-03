@@ -4775,6 +4775,7 @@ function unlockApp(){
 
 auth.onAuthStateChanged(user=>{
   _authUser = user;
+  if(_devMode){ unlockApp(); return; }
   const signedOutEl = document.getElementById('authSignedOut');
   const signedInEl = document.getElementById('authSignedIn');
 
