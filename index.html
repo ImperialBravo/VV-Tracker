@@ -1558,6 +1558,24 @@ function computeTotalsAllTime(pid){
 }
 
 // ═══════════════════════════════════════════
+// CSV PARSER
+// ═══════════════════════════════════════════
+function parseCSV(text){
+  const out=[]; let i=0,field="",row=[],inQ=false;
+  function pf(){ row.push(field); field=""; }
+  function pr(){ if(row.some(x=>(x??"").trim()!=="")) out.push(row); row=[]; }
+  while(i<text.length){
+    const c=text[i];
+    if(inQ){ if(c==='"'&&text[i+1]==='"'){field+='"';i+=2;continue;} if(c==='"'){inQ=false;i++;continue;} field+=c;i++;continue; }
+    else{ if(c==='"'){inQ=true;i++;continue;} if(c===','){pf();i++;continue;} if(c==='\r'){i++;continue;} if(c==='\n'){pf();pr();i++;continue;} field+=c;i++;continue; }
+  }
+  pf(); pr();
+  const headers=(out.shift()||[]).map(h=>h.trim());
+  return out.map(r=>{ const obj={}; headers.forEach((h,idx)=>obj[h]=(r[idx]??"").trim()); return obj; });
+}
+function normalizeType(t){ const x=(t||"").toUpperCase(); if(x.includes("IN")) return "IN"; if(x.includes("OUT")) return "OUT"; return ""; }
+
+// ═══════════════════════════════════════════
 // CSV IMPORT
 // ═══════════════════════════════════════════
 function clockEventExists(pid,type,timeISO){ return state.clockEvents.some(e=>e.personId===pid&&e.type===type&&e.timeISO===timeISO); }
