@@ -693,7 +693,7 @@
         <!-- Left: Config -->
         <div style="display:flex;flex-direction:column;gap:12px">
           <div class="panel">
-            <div class="panel-head"><div class="h">Package</div></div>
+            <div class="panel-head"><div class="h">Package</div><button id="rcEditPricesBtn" class="btn-ghost btn-sm" data-perm-edit style="font-size:11px">Edit Prices</button></div>
             <div class="panel-body">
               <div id="rcPackageGrid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px"></div>
               <div class="muted small" style="margin-top:8px;text-align:center">All packages include 4 Security</div>
@@ -970,7 +970,7 @@ function seed(){
     ui:{inactiveOnly:false,showArchived:false,view:"hub",reviewTab:"eotm"},
     people:[], clockEvents:[], loas:[], entries:[], notesEntries:[], eotmHistory:[],
     calendarEvents:[], trainingNotes:[], mgmtEvents:[], shiftTags:[], templates:[],
-    blacklist:[], sops:[], auditLog:[]
+    blacklist:[], sops:[], auditLog:[], rentalPrices:null
   };
 }
 
@@ -978,7 +978,7 @@ function ensureState(data){
   if(!data||!Array.isArray(data.people)) return seed();
   data.clockEvents||=[];data.loas||=[];data.entries||=[];data.notesEntries||=[];data.eotmHistory||=[];
   data.calendarEvents||=[];data.trainingNotes||=[];data.mgmtEvents||=[];data.shiftTags||=[];data.templates||=[];
-  data.blacklist||=[];data.sops||=[];data.auditLog||=[];
+  data.blacklist||=[];data.sops||=[];data.auditLog||=[];data.rentalPrices||=null;
   data.ui||={inactiveOnly:false,showArchived:false,view:"hub",reviewTab:"eotm"};
   data.ui.reviewTab||="eotm"; data.ui.view||="hub";
   data.profileMonthCursor||=data.monthCursor||new Date().toISOString();
@@ -1821,7 +1821,7 @@ function renderHub(){
       if(e.target.matches("button[data-revive]")) return;
       if(!canViewProfile(p.id)){toast("You can only view your own profile");return;}
       state.selectedId=p.id; state.profileMonthCursor=new Date().toISOString();
-      state.ui.view="profile"; save(); document.querySelectorAll(".sidebar .nav-item").forEach(el=>el.classList.remove("active")); renderProfile();
+      state.ui.view="profile"; renderProfile(); save();
     });
     cards.appendChild(el);
   }
@@ -1940,6 +1940,7 @@ function renderProfile(){
   if(!p){renderHub();return;}
 
   state.ui.view="profile"; save();
+  updateSidebarActive('profile');
   hideAllViews();
   $("#profileView").style.display="";
 
@@ -3998,22 +3999,22 @@ function renderLeaderDash(){
           <div class="card-name">${escapeHtml(s.p.character||'(no name)')}</div>
           <div class="card-meta">${escapeHtml(s.p.rank||'—')}</div>
         </div>
-        <span class="pill accent" style="font-size:14px;font-weight:900">${s.total}</span>
+        <span class="pill accent" style="font-size:15px;font-weight:900;padding:4px 12px">${s.total} total</span>
       </div>
-      <div style="display:flex;gap:8px;margin-top:10px;font-size:12px;flex-wrap:wrap">
-        <div style="flex:1;min-width:120px">
-          <div class="muted small" style="font-weight:700;margin-bottom:4px">Led (${s.ledTotal})</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <span style="font-size:11px"><span style="color:var(--muted)">Events:</span> <b>${s.ledEvents}</b></span>
-            <span style="font-size:11px"><span style="color:var(--muted)">Train:</span> <b>${s.ledTrainings}</b></span>
-            <span style="font-size:11px"><span style="color:var(--muted)">Int:</span> <b>${s.ledInterviews}</b></span>
+      <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
+        <div style="background:var(--surface);border-radius:8px;padding:8px">
+          <div style="font-weight:700;color:var(--gold-hi);margin-bottom:6px">Led <span style="font-weight:400;color:var(--muted)">(${s.ledTotal})</span></div>
+          <div style="display:flex;flex-direction:column;gap:3px">
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Openings</span><b>${s.ledEvents}</b></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Trainings</span><b>${s.ledTrainings}</b></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Interviews</span><b>${s.ledInterviews}</b></div>
           </div>
         </div>
-        <div style="flex:1;min-width:120px">
-          <div class="muted small" style="font-weight:700;margin-bottom:4px">Attended (${s.attTotal})</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <span style="font-size:11px"><span style="color:var(--muted)">Train:</span> <b>${s.attTrainings}</b></span>
-            <span style="font-size:11px"><span style="color:var(--muted)">Int:</span> <b>${s.attInterviews}</b></span>
+        <div style="background:var(--surface);border-radius:8px;padding:8px">
+          <div style="font-weight:700;color:var(--muted);margin-bottom:6px">Attended <span style="font-weight:400">(${s.attTotal})</span></div>
+          <div style="display:flex;flex-direction:column;gap:3px">
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Trainings</span><b>${s.attTrainings}</b></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Interviews</span><b>${s.attInterviews}</b></div>
           </div>
         </div>
       </div>
@@ -4293,7 +4294,7 @@ document.getElementById('sideHours')?.addEventListener('click',()=>{renderOvervi
 document.getElementById('sideMgmtCal')?.addEventListener('click',renderMgmtCal);
 document.getElementById('sideShiftPerf')?.addEventListener('click',()=>{renderShiftPerf._filterPid='';renderShiftPerf._filterDay='';renderShiftPerf._month=new Date().toISOString();renderShiftPerf();});
 document.getElementById('sideLeader')?.addEventListener('click',renderLeaderDash);
-document.getElementById('sidePromo')?.addEventListener('click',()=>{state.ui.view='review';save();renderReviewPage();});
+document.getElementById('sidePromo')?.addEventListener('click',()=>{state.ui.view='review';save();updateSidebarActive('review');renderReviewPage();});
 document.getElementById('sideTemplates')?.addEventListener('click',renderTemplates);
 document.getElementById('sideBlacklist')?.addEventListener('click',renderBlacklist);
 document.getElementById('sideImportCSV')?.addEventListener('click',()=>document.getElementById('csvFile').click());
@@ -4415,7 +4416,7 @@ function openSopModal(editId){
 // ═══════════════════════════════════════════
 // RENDER: RENTAL CALCULATOR
 // ═══════════════════════════════════════════
-const RC_PACKAGES=[
+const RC_PACKAGES_DEFAULT=[
   {name:'Paradise Lounge',price:80000},{name:'Vanilla Unicorn',price:70000},
   {name:'Bahama Mamas',price:60000},{name:'Maisonette 10',price:50000},
   {name:'Tequi-la-la',price:50000},{name:'Wiwang Sky Bar',price:50000},
@@ -4423,10 +4424,13 @@ const RC_PACKAGES=[
   {name:'Sandy Biker Bar',price:40000},{name:'Split Sides Comedy Club',price:40000},
   {name:'Custom Event',price:35000}
 ];
-const RC_STAFF=[
+const RC_STAFF_DEFAULT=[
   {role:'Security',price:5000},{role:'Dancer',price:5000},
   {role:'Bartender',price:5000},{role:'DJ',price:10000}
 ];
+function getRCPackages(){ return (state.rentalPrices?.packages||RC_PACKAGES_DEFAULT); }
+function getRCStaff(){ return (state.rentalPrices?.staff||RC_STAFF_DEFAULT); }
+function getRCAddons(){ return state.rentalPrices?.addons||{heli:20000,bus:15000,discount:15}; }
 const rcFmt=(n)=>'$'+n.toLocaleString();
 
 // Rental calc state (non-persistent, resets each visit)
@@ -4439,7 +4443,7 @@ function renderRentalCalc(){
   if(typeof updateSidebarActive==='function') updateSidebarActive('rental');
 
   const grid=document.getElementById('rcPackageGrid');
-  grid.innerHTML=RC_PACKAGES.map((p,i)=>{
+  grid.innerHTML=getRCPackages().map((p,i)=>{
     const sel=i===rcState.pkg;
     return `<button data-rc-pkg="${i}" style="padding:10px 12px;border-radius:10px;border:1px solid ${sel?'rgba(201,168,76,.5)':'var(--line2)'};background:${sel?'rgba(201,168,76,.1)':'var(--surface)'};color:${sel?'var(--gold-hi)':'var(--text)'};cursor:pointer;text-align:left;font-family:inherit;font-size:12px">
       <div style="font-weight:700">${escapeHtml(p.name)}</div>
@@ -4447,9 +4451,13 @@ function renderRentalCalc(){
     </button>`;
   }).join('');
 
+  // Edit Prices button (Director+ only)
+  const editPricesBtn=document.getElementById('rcEditPricesBtn');
+  if(editPricesBtn) editPricesBtn.addEventListener('click', openRentalPricesModal);
+
   // Staff inputs
   const staffBody=document.getElementById('rcStaffBody');
-  staffBody.innerHTML=RC_STAFF.map(s=>`
+  staffBody.innerHTML=getRCStaff().map(s=>`
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px">
       <div><span style="font-weight:600">${escapeHtml(s.role)}</span><span class="muted" style="font-size:11px;margin-left:4px">+${rcFmt(s.price)}</span></div>
       <div style="display:flex;align-items:center;gap:8px">
@@ -4462,9 +4470,10 @@ function renderRentalCalc(){
 
   // Addons
   const addonsBody=document.getElementById('rcAddonsBody');
+  const addonPrices=getRCAddons();
   const addons=[
-    {key:'heli',label:'Helicopter',sub:'$20,000',checked:rcState.heli},
-    {key:'bus',label:'Party Bus',sub:'$15,000 · includes DJ',checked:rcState.bus},
+    {key:'heli',label:'Helicopter',sub:rcFmt(addonPrices.heli),checked:rcState.heli},
+    {key:'bus',label:'Party Bus',sub:rcFmt(addonPrices.bus)+' · includes DJ',checked:rcState.bus},
   ];
   addonsBody.innerHTML=addons.map(a=>`
     <label style="display:flex;align-items:center;gap:10px;padding:10px 0;cursor:pointer;border-bottom:1px solid var(--line)">
@@ -4480,7 +4489,7 @@ function renderRentalCalc(){
         <input type="checkbox" data-rc-addon="discount" ${rcState.discount?'checked':''} style="accent-color:var(--good);width:16px;height:16px"/>
         <div>
           <div style="font-size:13px;font-weight:600;color:var(--good)">Employee Discount</div>
-          <div class="muted small">15% off total</div>
+          <div class="muted small">${addonPrices.discount}% off total</div>
         </div>
       </label>
     </div>
@@ -4512,12 +4521,14 @@ function renderRentalCalc(){
 }
 
 function updateRentalSummary(){
-  const pkg=RC_PACKAGES[rcState.pkg];
+  const pkg=getRCPackages()[rcState.pkg];
+  const addons=getRCAddons();
   const base=pkg.price;
-  const staffCost=Object.entries(rcState.staff).reduce((s,[k,v])=>s+v*RC_STAFF.find(x=>x.role===k).price,0);
-  const addonCost=(rcState.heli?20000:0)+(rcState.bus?15000:0);
+  const staffCost=Object.entries(rcState.staff).reduce((s,[k,v])=>s+v*(getRCStaff().find(x=>x.role===k)?.price||0),0);
+  const addonCost=(rcState.heli?addons.heli:0)+(rcState.bus?addons.bus:0);
   const subtotal=base+staffCost+addonCost;
-  const total=rcState.discount?Math.round(subtotal*0.85):subtotal;
+  const discPct=addons.discount/100;
+  const total=rcState.discount?Math.round(subtotal*(1-discPct)):subtotal;
   const saved=rcState.discount?subtotal-total:0;
 
   const totalStaff={
@@ -4536,15 +4547,79 @@ function updateRentalSummary(){
   // Line items
   let lines=`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:var(--muted)"><span>Package</span><span style="color:var(--text)">${rcFmt(base)}</span></div>`;
   if(staffCost>0) lines+=`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:var(--muted)"><span>Additional Staff</span><span style="color:var(--text)">+${rcFmt(staffCost)}</span></div>`;
-  if(rcState.heli) lines+=`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:var(--muted)"><span>Helicopter</span><span style="color:var(--text)">+${rcFmt(20000)}</span></div>`;
-  if(rcState.bus) lines+=`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:var(--muted)"><span>Party Bus + DJ</span><span style="color:var(--text)">+${rcFmt(15000)}</span></div>`;
-  if(rcState.discount) lines+=`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:var(--good)"><span>Employee (−15%)</span><span>−${rcFmt(saved)}</span></div>`;
+  if(rcState.heli) lines+=`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:var(--muted)"><span>Helicopter</span><span style="color:var(--text)">+${rcFmt(addons.heli)}</span></div>`;
+  if(rcState.bus) lines+=`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:var(--muted)"><span>Party Bus + DJ</span><span style="color:var(--text)">+${rcFmt(addons.bus)}</span></div>`;
+  if(rcState.discount) lines+=`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;color:var(--good)"><span>Employee (−${addons.discount}%)</span><span>−${rcFmt(saved)}</span></div>`;
   document.getElementById('rcLineItems').innerHTML=lines;
 
   // Total
   document.getElementById('rcStrikethrough').textContent=rcState.discount?rcFmt(subtotal):'';
   document.getElementById('rcTotal').textContent=rcFmt(total);
   document.getElementById('rcDiscountNote').textContent=rcState.discount?'Employee discount applied':'';
+}
+
+function openRentalPricesModal(){
+  const pkgs=getRCPackages();
+  const staff=getRCStaff();
+  const addons=getRCAddons();
+  const pkgRows=pkgs.map((p,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--line)">
+      <span style="flex:1;font-size:12px">${escapeHtml(p.name)}</span>
+      <span style="color:var(--muted);font-size:11px">$</span>
+      <input type="number" data-rp-pkg="${i}" value="${p.price}" min="0" step="1000" style="width:90px;padding:4px 8px;font-size:12px;border-radius:6px">
+    </div>`).join('');
+  const staffRows=staff.map((s,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--line)">
+      <span style="flex:1;font-size:12px">${escapeHtml(s.role)}</span>
+      <span style="color:var(--muted);font-size:11px">$</span>
+      <input type="number" data-rp-staff="${i}" value="${s.price}" min="0" step="500" style="width:90px;padding:4px 8px;font-size:12px;border-radius:6px">
+    </div>`).join('');
+  openModal('Edit Rental Prices',`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div>
+        <div style="font-weight:700;font-size:13px;margin-bottom:6px">Packages</div>
+        ${pkgRows}
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:13px;margin-bottom:6px">Staff (per person)</div>
+        ${staffRows}
+        <div style="font-weight:700;font-size:13px;margin:12px 0 6px">Add-ons</div>
+        <div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--line)">
+          <span style="flex:1;font-size:12px">Helicopter</span>
+          <span style="color:var(--muted);font-size:11px">$</span>
+          <input type="number" id="rp-heli" value="${addons.heli}" min="0" step="1000" style="width:90px;padding:4px 8px;font-size:12px;border-radius:6px">
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--line)">
+          <span style="flex:1;font-size:12px">Party Bus</span>
+          <span style="color:var(--muted);font-size:11px">$</span>
+          <input type="number" id="rp-bus" value="${addons.bus}" min="0" step="1000" style="width:90px;padding:4px 8px;font-size:12px;border-radius:6px">
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+          <span style="flex:1;font-size:12px">Employee Discount</span>
+          <input type="number" id="rp-discount" value="${addons.discount}" min="0" max="100" step="1" style="width:60px;padding:4px 8px;font-size:12px;border-radius:6px">
+          <span style="color:var(--muted);font-size:11px">%</span>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+      <button class="btn-ghost btn-sm" id="rpResetBtn">Reset to Defaults</button>
+      <button class="btn-accent btn-sm" id="rpSaveBtn">Save Prices</button>
+    </div>
+  `);
+  document.getElementById('rpSaveBtn').addEventListener('click',()=>{
+    const newPkgs=pkgs.map((p,i)=>({...p,price:Math.max(0,parseInt(document.querySelector(`[data-rp-pkg="${i}"]`)?.value)||0)}));
+    const newStaff=staff.map((s,i)=>({...s,price:Math.max(0,parseInt(document.querySelector(`[data-rp-staff="${i}"]`)?.value)||0)}));
+    const newAddons={
+      heli:Math.max(0,parseInt(document.getElementById('rp-heli')?.value)||0),
+      bus:Math.max(0,parseInt(document.getElementById('rp-bus')?.value)||0),
+      discount:Math.min(100,Math.max(0,parseInt(document.getElementById('rp-discount')?.value)||0))
+    };
+    state.rentalPrices={packages:newPkgs,staff:newStaff,addons:newAddons};
+    save();closeModal();renderRentalCalc();toast('Prices saved');
+  });
+  document.getElementById('rpResetBtn').addEventListener('click',()=>{
+    state.rentalPrices=null;save();closeModal();renderRentalCalc();toast('Prices reset to defaults');
+  });
 }
 
 function renderVenueTracker(){
@@ -4745,7 +4820,7 @@ document.getElementById('sideHours')?.addEventListener('click',()=>{renderOvervi
 document.getElementById('sideMgmtCal')?.addEventListener('click',renderMgmtCal);
 document.getElementById('sideShiftPerf')?.addEventListener('click',()=>{renderShiftPerf._filterPid='';renderShiftPerf._filterDay='';renderShiftPerf._month=new Date().toISOString();renderShiftPerf();});
 document.getElementById('sideLeader')?.addEventListener('click',renderLeaderDash);
-document.getElementById('sidePromo')?.addEventListener('click',()=>{state.ui.view='review';save();renderReviewPage();});
+document.getElementById('sidePromo')?.addEventListener('click',()=>{state.ui.view='review';save();updateSidebarActive('review');renderReviewPage();});
 document.getElementById('sideTemplates')?.addEventListener('click',renderTemplates);
 document.getElementById('sideBlacklist')?.addEventListener('click',renderBlacklist);
 document.getElementById('sideImportCSV')?.addEventListener('click',()=>document.getElementById('csvFile').click());
