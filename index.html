@@ -1815,6 +1815,7 @@ function renderHub(){
     if(it.vuDancerStreak>=3) badge+=` <span class="pill bad">${it.vuDancerStreak} VU Dancer — rotate</span>`;
 
     const el=document.createElement("div"); el.className="card";
+    el.setAttribute('data-card-pid', p.id);
     el.innerHTML=`
       <div class="card-top">
         <div>
@@ -1836,12 +1837,6 @@ function renderHub(){
         ${a.state==='INACTIVE'?`<button class="btn-ghost btn-sm" data-action-copy-msg="${escapeHtml(activityMsgTemplate('inactivity',p.character,a.lastClockIn))}" style="font-size:10px">Copy Msg</button>`:''}
       </div>`:''}
     `;
-    el.addEventListener("click",e=>{
-      if(e.target.matches("button[data-revive]")) return;
-      if(!canViewProfile(p.id)){toast("You can only view your own profile");return;}
-      state.selectedId=p.id; state.profileMonthCursor=new Date().toISOString();
-      state.ui.view="profile"; renderProfile(); save();
-    });
     cards.appendChild(el);
   }
   document.querySelectorAll("button[data-revive]").forEach(btn=>{
@@ -1856,6 +1851,17 @@ function renderHub(){
   });
   document.querySelectorAll("[data-action-copy-msg]").forEach(btn=>{
     btn.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();copyText(btn.getAttribute("data-action-copy-msg"));});
+  });
+  // Card click handler — delegated via data attribute
+  cards.querySelectorAll('[data-card-pid]').forEach(card=>{
+    card.addEventListener('click',e=>{
+      if(e.target.closest('button[data-revive]')||e.target.closest('button[data-action-copy-dc]')||e.target.closest('button[data-action-copy-msg]')) return;
+      const pid=card.getAttribute('data-card-pid');
+      if(!pid) return;
+      if(!canViewProfile(pid)){toast("You can only view your own profile");return;}
+      state.selectedId=pid; state.profileMonthCursor=new Date().toISOString();
+      state.ui.view="profile"; renderProfile(); save();
+    });
   });
 }
 
@@ -3710,6 +3716,7 @@ function renderShiftPerf(){
 
   let totalOpenings=0, totalStaff=new Set(), totalPos=0, totalImp=0;
   let html='';
+  renderShiftPerf._lastDateKey=null;
 
   for(const me of openings){
     const noteFilter=renderShiftPerf._noteFilter||'';
@@ -3734,6 +3741,7 @@ function renderShiftPerf(){
 
     totalOpenings++;
     const dateStr=fmtMDY(new Date(me.dateISO));
+    const dateKey=dateValueFromISO(me.dateISO);
     const venueLabel=me.venueTitle||venueTypeLabel(me.venueType||'');
     const typeColor=venueTypeColor(me.venueType||'');
     const typeLabel=venueTypeLabel(me.venueType||'');
@@ -3741,22 +3749,26 @@ function renderShiftPerf(){
     const timeStr=displayEventTimeFromStored(me.eventTime,me.dateISO)||'';
     const posCount=roster.filter(r=>r.positives).length;
     const impCount=roster.filter(r=>r.improvements).length;
-    const spCardId='spcard_'+me.id.replace(/[^a-zA-Z0-9]/g,'');
+
+    // Date header — show when date changes
+    if(!renderShiftPerf._lastDateKey || renderShiftPerf._lastDateKey!==dateKey){
+      renderShiftPerf._lastDateKey=dateKey;
+      html+=`<div style="font-size:14px;font-weight:900;color:var(--accent);padding:12px 0 6px;margin-top:${totalOpenings>1?'12px':'0'};border-bottom:2px solid var(--accent-mid);margin-bottom:8px">${escapeHtml(dateStr)}</div>`;
+    }
 
     html+=`<div style="border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:8px;background:var(--panel)">
-      <div style="padding:10px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px" data-sp-toggle="${spCardId}">
+      <div style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid var(--line)">
         <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
           <span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;color:${typeColor};border:1.5px solid ${typeColor};flex-shrink:0">${escapeHtml(typeLabel)}</span>
           <span style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(venueLabel)}</span>
-          <span style="font-size:11px;color:var(--muted);flex-shrink:0">${escapeHtml(dateStr)}${timeStr?' \u00b7 '+escapeHtml(timeStr):''}</span>
+          <span style="font-size:11px;color:var(--muted);flex-shrink:0">${timeStr?escapeHtml(timeStr):''}</span>
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
           ${posCount>0?`<span style="font-size:10px;font-weight:700;color:var(--good)">+${posCount}</span>`:''}
           ${impCount>0?`<span style="font-size:10px;font-weight:700;color:var(--warn)">\u25B3${impCount}</span>`:''}
-          <span style="font-size:10px;color:var(--muted);transition:transform .15s" data-sp-arrow="${spCardId}">\u25BE</span>
         </div>
       </div>
-      <div id="${spCardId}" style="display:none;border-top:1px solid var(--line);padding:10px 14px">
+      <div style="padding:10px 14px">
         <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Led by <b>${ledName}</b></div>`;
 
     for(const r of roster){
@@ -3799,19 +3811,6 @@ function renderShiftPerf(){
 
   host.innerHTML=summaryHtml+html;
   wireProfileLinks();
-  // Wire collapsible opening cards
-  document.querySelectorAll('[data-sp-toggle]').forEach(hdr=>{
-    hdr.addEventListener('click',()=>{
-      const id=hdr.getAttribute('data-sp-toggle');
-      const body=document.getElementById(id);
-      const arrow=document.querySelector(`[data-sp-arrow="${id}"]`);
-      if(body){
-        const isOpen=body.style.display!=='none';
-        body.style.display=isOpen?'none':'';
-        if(arrow) arrow.style.transform=isOpen?'':'rotate(180deg)';
-      }
-    });
-  });
   document.getElementById('spTogglePos')?.addEventListener('click',()=>{
     renderShiftPerf._noteFilter=renderShiftPerf._noteFilter==='positive'?'':'positive';
     renderShiftPerf();
