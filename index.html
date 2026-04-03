@@ -1060,7 +1060,7 @@ function seed(){
 let state = seed();
 let _firestoreReady = false;
 let _authUser = null;
-let _devMode = false;
+let _devMode = new URLSearchParams(location.search).get('key') === 'HHVV2025';
 let _snapshotUnsubs = [];
 
 // Firestore collection names mapped to state keys
@@ -1251,11 +1251,6 @@ function setupListeners(){
       }
       state[stateKey] = snap.docs.map(d=>({id:d.id, ...d.data()}));
       // If people just loaded and we have an auth user with no match yet, retry
-      // If bypass mode is active but we haven't matched a Director yet, try now
-      if(stateKey==='people' && _devMode && !state.loggedInAs){
-        const dir = state.people.find(p=>!p.archived && p.rank==='Director');
-        if(dir){ state.loggedInAs = dir.id; save(); unlockApp(); }
-      }
       if(_firestoreReady) refreshCurrentView();
     }, err=>{ console.error(`Listener error [${collName}]:`,err); });
     _snapshotUnsubs.push(unsub);
@@ -1314,13 +1309,7 @@ function startApp(){
   // Hide loading overlay
   const lo = document.getElementById('loadingOverlay');
   if(lo) lo.style.display='none';
-  // If a bypass key is in the URL, unlock as the first Director in the DB
-  if(new URLSearchParams(location.search).get('key') === 'HHVV2025'){
-    _devMode = true;
-    const dir = state.people.find(p=>!p.archived && p.rank==='Director');
-    if(dir){ state.loggedInAs = dir.id; save(); }
-    unlockApp();
-  }
+  if(_devMode) unlockApp();
 
   // Auto-archive Unknown/empty character names
   for(const p of state.people){
@@ -4795,7 +4784,6 @@ auth.onAuthStateChanged(user=>{
     signedInEl.style.display = '';
     document.getElementById('authUserName').textContent = user.displayName || user.email;
 
-    if(_devMode){ unlockApp(); return; }
     const match = state.people.find(p => p.email && p.email.trim().toLowerCase() === user.email.trim().toLowerCase());
     if(match){
       state.loggedInAs = match.id;
@@ -4855,6 +4843,16 @@ function updateSidebarActive(view){
 // loginAsSelect handler removed — auth is Google-only now
 
 function applyPermissions(){
+  if(_devMode){
+    document.querySelectorAll('[data-perm-edit]').forEach(el=>el.style.display='');
+    document.querySelectorAll('[data-perm-view-only]').forEach(el=>el.style.display='none');
+    ['sideMgmtCal','sideBlacklist','sideSOPs','sideHub','sideHours','sideShiftPerf',
+     'sideLeader','sidePromo','sideVenues','sideRental','sideTemplates','sideAudit',
+     'sideImportCSV','sideImport','sideExport','sideImportBackup','sideAddPerson'
+    ].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});
+    document.querySelector('main').style.display='';
+    return;
+  }
   const rl=rankLevel(currentRank()); // -1=not matched, 0=Employee, 1=Senior, 2=Sup, 3=Mgr, 4=Dir
   const notMatched=!state.loggedInAs;
   const isEmpSenior=!notMatched && rl<2;
