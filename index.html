@@ -3945,18 +3945,14 @@ function renderLeadership(pid, p){
   if(ldPrevBtn) ldPrevBtn.onclick=()=>{
     const d=startOfMonth(new Date(renderLeadership._month));d.setMonth(d.getMonth()-1);
     renderLeadership._month=d.toISOString();
-    fromEl.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
-    const last=new Date(d.getFullYear(),d.getMonth()+1,0);
-    toEl.value=`${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`;
+    fromEl.value=''; toEl.value='';
     rerender();
   };
   const ldNextBtn=document.getElementById('ldNext');
   if(ldNextBtn) ldNextBtn.onclick=()=>{
     const d=startOfMonth(new Date(renderLeadership._month));d.setMonth(d.getMonth()+1);
     renderLeadership._month=d.toISOString();
-    fromEl.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
-    const last=new Date(d.getFullYear(),d.getMonth()+1,0);
-    toEl.value=`${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`;
+    fromEl.value=''; toEl.value='';
     rerender();
   };
   const ldApplyBtn=document.getElementById('ldApply');
