@@ -947,11 +947,30 @@ function rankLevel(rank){
   const idx=RANKS.indexOf(r);
   return idx===-1?-1:idx;
 }
-function canEdit(){ if(DEV_MODE) return true; if(!currentUserObj) return false; return rankLevel(currentRank())>=2; }
-function canView(){ if(DEV_MODE) return true; return !!currentUserObj; }
-function canViewProfile(targetPid){ if(DEV_MODE) return true; if(!currentUserObj) return false; if(rankLevel(currentUserObj.rank)>=2) return true; return currentUserObj.id===targetPid; }
-function canPromoteOrFire(targetPid){ if(DEV_MODE) return true; if(!currentUserObj) return false; const target=getPerson(targetPid); if(!target) return false; const myLevel=rankLevel(currentUserObj.rank); const theirLevel=rankLevel(target.rank); if(myLevel>=4) return true; if(myLevel>=2) return theirLevel<myLevel; return false; }
-function isViewOnly(){ if(DEV_MODE) return false; if(!currentUserObj) return true; return rankLevel(currentUserObj.rank)<2; }
+function canEdit(){
+  if(!currentUserObj) return false;
+  return rankLevel(currentRank())>=2;
+}
+function canView(){ return !!currentUserObj; }
+function canViewProfile(targetPid){
+  if(!currentUserObj) return false;
+  if(rankLevel(currentUserObj.rank)>=2) return true;
+  return currentUserObj.id===targetPid;
+}
+function canPromoteOrFire(targetPid){
+  if(!currentUserObj) return false;
+  const target=getPerson(targetPid);
+  if(!target) return false;
+  const myLevel=rankLevel(currentUserObj.rank);
+  const theirLevel=rankLevel(target.rank);
+  if(myLevel>=4) return true;
+  if(myLevel>=2) return theirLevel<myLevel;
+  return false;
+}
+function isViewOnly(){
+  if(!currentUserObj) return true;
+  return rankLevel(currentUserObj.rank)<2;
+}
 
 function findPersonByEmail(email){
   if(!email) return null;
