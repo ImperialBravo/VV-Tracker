@@ -460,6 +460,11 @@
         <div id="authUserName" style="font-size:11px;font-weight:700;color:var(--gold-hi);word-break:break-all"></div>
         <div id="authUserRole" style="font-size:10px;color:var(--muted);margin-top:2px"></div>
         <button class="btn-ghost btn-sm" id="signOutBtn" style="width:100%;margin-top:6px;font-size:10px">Sign Out</button>
+        <div id="bootstrapSetup" style="display:none;margin-top:8px">
+          <div style="font-size:10px;color:var(--warn);margin-bottom:4px;line-height:1.4">No staff in database.<br>Create the first Director?</div>
+          <input id="bootstrapName" placeholder="Your character name" style="width:100%;font-size:11px;padding:5px 8px">
+          <button class="btn-accent btn-sm" id="bootstrapBtn" style="width:100%;margin-top:4px;font-size:10px">Create Director Profile</button>
+        </div>
       </div>
     </div>
     <div style="margin-top:auto;padding-top:8px">
@@ -1309,6 +1314,12 @@ function startApp(){
   // Hide loading overlay
   const lo = document.getElementById('loadingOverlay');
   if(lo) lo.style.display='none';
+  // Re-evaluate bootstrap visibility now that Firestore data is loaded
+  if(_authUser && !state.loggedInAs){
+    const hasDir = state.people.some(p=>!p.archived && p.rank==='Director');
+    const bsDiv = document.getElementById('bootstrapSetup');
+    if(bsDiv) bsDiv.style.display = !hasDir ? '' : 'none';
+  }
 
   // Auto-archive Unknown/empty character names
   for(const p of state.people){
@@ -4755,6 +4766,32 @@ document.getElementById('signOutBtn')?.addEventListener('click', ()=>{
   auth.signOut();
 });
 
+document.getElementById('bootstrapBtn')?.addEventListener('click', async ()=>{
+  const name = (document.getElementById('bootstrapName')?.value||'').trim();
+  if(!name){ alert('Enter your character name'); return; }
+  if(!_authUser?.email){ alert('Not signed in'); return; }
+  if(state.people.some(p=>!p.archived && p.rank==='Director')){
+    alert('A Director already exists — contact them to add you.');
+    document.getElementById('bootstrapSetup').style.display='none';
+    return;
+  }
+  const p={id:uid(),steam:'',steamName:'',character:name,callsign:'',stageName:'',
+    rank:'Director',discord:'',discordId:'',timeZone:'',bankAccount:'',
+    email:_authUser.email,phone:'',
+    training:{sop:{done:false,trainerId:'',date:'',comment:''},roles:{}},
+    priorityRole:'',crossTrain:[],notes:'',archived:false};
+  ensurePerson(p);
+  state.people.push(p);
+  await savePerson(p);
+  state.loggedInAs=p.id;
+  save();
+  document.getElementById('bootstrapSetup').style.display='none';
+  document.getElementById('authUserRole').textContent='Director';
+  unlockApp();
+  refreshCurrentView();
+  toast('Director profile created — welcome!');
+});
+
 // Lock/unlock the app based on auth state
 function lockApp(){
   document.querySelector('.sidebar')?.querySelectorAll('.nav-item, .nav-section, .nav-divider, #sideEmployeeCount, #sideAddPerson').forEach(el=>{
@@ -4798,6 +4835,10 @@ auth.onAuthStateChanged(user=>{
       lockApp();
       // Show the auth section but nothing else
       document.getElementById('authSection').style.display='';
+      // Bootstrap: if Firestore is loaded and no directors exist, offer self-registration
+      const hasDir = state.people.some(p=>!p.archived && p.rank==='Director');
+      const bsDiv = document.getElementById('bootstrapSetup');
+      if(bsDiv) bsDiv.style.display = (_firestoreReady && !hasDir) ? '' : 'none';
     }
   } else {
     // Signed out — lock everything
