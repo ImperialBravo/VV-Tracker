@@ -512,9 +512,7 @@
         <div class="panel-head">
           <div class="h">Hours Overview</div>
           <div class="row tight" style="gap:6px;flex-wrap:wrap">
-            <button class="btn-ghost btn-sm" id="ovPrev">←</button>
             <span class="pill" id="ovMonthLabel">Month</span>
-            <button class="btn-ghost btn-sm" id="ovNext">→</button>
             <span class="muted small" style="margin-left:8px">Range:</span>
             <input type="date" id="ovDateFrom" style="font-size:11px;padding:3px 6px;width:110px"/>
             <input type="date" id="ovDateTo" style="font-size:11px;padding:3px 6px;width:110px"/>
@@ -1876,6 +1874,8 @@ function renderOverview(){
   $("#overviewView").style.display="";
   state.ui.view="overview"; save(); if(typeof updateSidebarActive==="function") updateSidebarActive("overview");
 
+  // Always show current month
+  state.overviewMonthCursor = new Date().toISOString();
   const md=startOfMonth(new Date(state.overviewMonthCursor));
   const ovFrom=document.getElementById('ovDateFrom');
   const ovTo=document.getElementById('ovDateTo');
@@ -3798,6 +3798,20 @@ function renderShiftPerf(){
         </div>`;
       }
     }
+    // Overall role notes
+    const rn=me.roleNotes||{};
+    const rolesWithNotes=FIXED_ROLES.filter(r=>rn[r]);
+    if(rolesWithNotes.length){
+      html+=`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line)">`;
+      for(const r of rolesWithNotes){
+        const rc=venueTypeColor(me.venueType||'')||'var(--muted)';
+        html+=`<div style="margin-bottom:4px">
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)">${escapeHtml(r)} Overall</span>
+          <div style="font-size:12px;margin-top:2px;padding:6px 8px;background:var(--surface);border-radius:6px">${escapeHtml(rn[r])}</div>
+        </div>`;
+      }
+      html+=`</div>`;
+    }
     html+=`</div></div>`;
   }
 
@@ -4385,6 +4399,7 @@ function auditLog(action, detail){
 function renderAudit(){
   hideAllViews();
   document.getElementById('auditView').style.display="";
+  state.ui.view="audit"; save(); updateSidebarActive("audit");
   state.ui.view="audit"; save();
   const host=document.getElementById('auditBody');
   const me=currentUser();
@@ -4405,7 +4420,7 @@ function renderAudit(){
 function renderSOPs(){
   hideAllViews();
   document.getElementById('sopsView').style.display="";
-  state.ui.view="sops"; save();
+  state.ui.view="sops"; save(); updateSidebarActive("sops");
   const host=document.getElementById('sopsBody');
   const sops=(state.sops||[]).sort((a,b)=>(a.title||'').localeCompare(b.title||''));
   if(!sops.length){host.innerHTML='<div class="muted small" style="padding:20px;text-align:center">No SOPs yet.</div>';return;}
@@ -4480,7 +4495,7 @@ let rcState={pkg:0,staff:{Security:0,Dancer:0,Bartender:0,DJ:0},heli:false,bus:f
 function renderRentalCalc(){
   hideAllViews();
   document.getElementById('rentalCalcView').style.display='';
-  state.ui.view='rental';save();
+  state.ui.view='rental';save(); updateSidebarActive("rental");
   if(typeof updateSidebarActive==='function') updateSidebarActive('rental');
 
   const grid=document.getElementById('rcPackageGrid');
@@ -4666,7 +4681,7 @@ function openRentalPricesModal(){
 function renderVenueTracker(){
   hideAllViews();
   document.getElementById('venueView').style.display="";
-  state.ui.view="venues"; save();
+  state.ui.view="venues"; save(); updateSidebarActive("venues");
   const host=document.getElementById('venueBody');
   const events=(state.mgmtEvents||[]).filter(me=>me.type==='event');
   const venueStats={};
