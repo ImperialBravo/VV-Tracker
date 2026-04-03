@@ -146,14 +146,14 @@
     /* ── HUB GRID ── */
     .hub-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 8px;
     }
 
     .card {
       height: auto;
-      min-height: 100px;
-      padding: 10px 12px;
+      min-height: 72px;
+      padding: 8px 10px;
       border: 1px solid var(--line);
       border-radius: var(--r2);
       background: var(--panel);
@@ -161,16 +161,16 @@
       transition: border-color .12s, transform .08s;
       display: flex; flex-direction: column; justify-content: space-between;
       overflow: hidden;
-      gap: 6px;
+      gap: 4px;
     }
     .card:hover { border-color: var(--accent-mid); transform: translateY(-1px); }
-    .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-    .card-name { font-weight: 900; font-size: 14px; line-height: 1.2; }
-    .card-meta { color: var(--muted); font-size: 11px; margin-top: 3px; line-height: 1.3; }
-    .card-hours { font-size: 18px; font-weight: 900; }
-    .card-hours-sub { color: var(--muted); font-size: 11px; }
-    .card-bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; }
-    .card-total { color: var(--muted); font-size: 11px; }
+    .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+    .card-name { font-weight: 900; font-size: 13px; line-height: 1.2; }
+    .card-meta { color: var(--muted); font-size: 10px; margin-top: 2px; line-height: 1.3; }
+    .card-hours { font-size: 16px; font-weight: 900; }
+    .card-hours-sub { color: var(--muted); font-size: 10px; }
+    .card-bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 6px; }
+    .card-total { color: var(--muted); font-size: 10px; }
 
     /* ── PROFILE ── */
     .profile-two-col {
@@ -3410,6 +3410,7 @@ function openMgmtEventModal(existing, prefillDate){
     const evTime=rawTime?JSON.stringify({time:rawTime,tz:rawTZ}):'';
     const note=(document.getElementById('me_note').value||'').trim();
     const venueType=document.getElementById('me_venueType')?.value||'';
+    if(!venueType) return alert('Select a venue type.');
     const cancelled=document.getElementById('me_cancelled')?.checked||false;
     let venueTitle=(document.getElementById('me_venueTitle')?.value||'').trim();
     if(venueTitle==='__custom') venueTitle=(document.getElementById('me_venueTitleCustom')?.value||'').trim();
@@ -3613,12 +3614,15 @@ function renderShiftPerf(){
   const fromEl=document.getElementById('spDateFrom');
   const toEl=document.getElementById('spDateTo');
 
-  // Default dates to current month
+  // Default dates to TODAY only (not full month)
   const curMonth=startOfMonth(new Date(renderShiftPerf._month));
-  if(!fromEl.value) fromEl.value=`${curMonth.getFullYear()}-${String(curMonth.getMonth()+1).padStart(2,'0')}-01`;
+  if(!fromEl.value){
+    const today=new Date();
+    fromEl.value=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  }
   if(!toEl.value){
-    const lastDay=new Date(curMonth.getFullYear(),curMonth.getMonth()+1,0);
-    toEl.value=`${lastDay.getFullYear()}-${String(lastDay.getMonth()+1).padStart(2,'0')}-${String(lastDay.getDate()).padStart(2,'0')}`;
+    const today=new Date();
+    toEl.value=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
   }
 
   const fromStr=fromEl.value;
@@ -3900,29 +3904,33 @@ function renderLeadership(pid, p){
 
   host.innerHTML=html;
 
-  // Wire controls
+  // Wire controls — use onclick to prevent stacking listeners on re-render
   const rerender=()=>renderLeadership(pid,p);
-  document.getElementById('ldPrev')?.addEventListener('click',()=>{
+  const ldPrevBtn=document.getElementById('ldPrev');
+  if(ldPrevBtn) ldPrevBtn.onclick=()=>{
     const d=startOfMonth(new Date(renderLeadership._month));d.setMonth(d.getMonth()-1);
     renderLeadership._month=d.toISOString();
     fromEl.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
     const last=new Date(d.getFullYear(),d.getMonth()+1,0);
     toEl.value=`${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`;
     rerender();
-  });
-  document.getElementById('ldNext')?.addEventListener('click',()=>{
+  };
+  const ldNextBtn=document.getElementById('ldNext');
+  if(ldNextBtn) ldNextBtn.onclick=()=>{
     const d=startOfMonth(new Date(renderLeadership._month));d.setMonth(d.getMonth()+1);
     renderLeadership._month=d.toISOString();
     fromEl.value=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
     const last=new Date(d.getFullYear(),d.getMonth()+1,0);
     toEl.value=`${last.getFullYear()}-${String(last.getMonth()+1).padStart(2,'0')}-${String(last.getDate()).padStart(2,'0')}`;
     rerender();
-  });
-  document.getElementById('ldApply')?.addEventListener('click',rerender);
-  document.getElementById('ldClear')?.addEventListener('click',()=>{
+  };
+  const ldApplyBtn=document.getElementById('ldApply');
+  if(ldApplyBtn) ldApplyBtn.onclick=rerender;
+  const ldClearBtn=document.getElementById('ldClear');
+  if(ldClearBtn) ldClearBtn.onclick=()=>{
     renderLeadership._month=new Date().toISOString();
     fromEl.value='';toEl.value='';rerender();
-  });
+  };
 }
 
 // ═══════════════════════════════════════════
@@ -3993,30 +4001,20 @@ function renderLeaderDash(){
   html+=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px">`;
 
   for(const s of stats){
-    html+=`<div class="card" style="cursor:pointer" data-ldash-pid="${escapeHtml(s.p.id)}">
-      <div class="card-top">
+    const activeColor=s.total>0?'var(--gold-hi)':'var(--muted)';
+    html+=`<div class="card" style="cursor:pointer;padding:10px 12px;gap:8px" data-ldash-pid="${escapeHtml(s.p.id)}">
+      <div style="display:flex;justify-content:space-between;align-items:center">
         <div>
-          <div class="card-name">${escapeHtml(s.p.character||'(no name)')}</div>
-          <div class="card-meta">${escapeHtml(s.p.rank||'—')}</div>
+          <span style="font-weight:900;font-size:13px">${escapeHtml(s.p.character||'(no name)')}</span>
+          <span style="color:var(--muted);font-size:11px;margin-left:4px">${escapeHtml(s.p.rank||'—')}</span>
         </div>
-        <span class="pill accent" style="font-size:15px;font-weight:900;padding:4px 12px">${s.total} total</span>
+        <span style="font-size:18px;font-weight:900;color:${activeColor}">${s.total}</span>
       </div>
-      <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
-        <div style="background:var(--surface);border-radius:8px;padding:8px">
-          <div style="font-weight:700;color:var(--gold-hi);margin-bottom:6px">Led <span style="font-weight:400;color:var(--muted)">(${s.ledTotal})</span></div>
-          <div style="display:flex;flex-direction:column;gap:3px">
-            <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Openings</span><b>${s.ledEvents}</b></div>
-            <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Trainings</span><b>${s.ledTrainings}</b></div>
-            <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Interviews</span><b>${s.ledInterviews}</b></div>
-          </div>
-        </div>
-        <div style="background:var(--surface);border-radius:8px;padding:8px">
-          <div style="font-weight:700;color:var(--muted);margin-bottom:6px">Attended <span style="font-weight:400">(${s.attTotal})</span></div>
-          <div style="display:flex;flex-direction:column;gap:3px">
-            <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Trainings</span><b>${s.attTrainings}</b></div>
-            <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Interviews</span><b>${s.attInterviews}</b></div>
-          </div>
-        </div>
+      <div style="display:flex;gap:12px;font-size:11px;color:var(--muted)">
+        <span>Led: <b style="color:var(--gold-hi)">${s.ledEvents}</b> opens · <b style="color:#6ec0cc">${s.ledTrainings}</b> train · <b style="color:#cc7a6a">${s.ledInterviews}</b> int</span>
+      </div>
+      <div style="display:flex;gap:12px;font-size:11px;color:var(--muted)">
+        <span>Attended: <b style="color:#6ec0cc">${s.attTrainings}</b> train · <b style="color:#cc7a6a">${s.attInterviews}</b> int</span>
       </div>
     </div>`;
   }
@@ -4134,11 +4132,16 @@ function renderBlacklist(){
   }
 
   let html='';
+  const today=new Date(); today.setHours(0,0,0,0);
   for(const e of entries){
-    html+=`<div style="border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-bottom:8px;background:var(--surface)">
+    const isExpired=e.endDate && new Date(e.endDate+'T23:59:59')<today;
+    html+=`<div style="border:1px solid ${isExpired?'var(--good-border)':'var(--line)'};border-radius:var(--r);padding:12px;margin-bottom:8px;background:${isExpired?'var(--good-dim)':'var(--surface)'}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div>
-          <div style="font-weight:700;font-size:14px">${escapeHtml(e.name||'—')}</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-weight:700;font-size:14px">${escapeHtml(e.name||'—')}</span>
+            ${isExpired?'<span class="pill good" style="font-size:10px;padding:2px 8px">EXPIRED</span>':''}
+          </div>
           <div style="font-size:12px;color:var(--muted);margin-top:2px">
             ${e.birthday?`<span>DOB: ${escapeHtml(fmtMDY(new Date(e.birthday+'T00:00:00')))}</span> · `:''}
             <span>Start: ${e.startDate?escapeHtml(fmtMDY(new Date(e.startDate+'T00:00:00'))):'—'}</span> · 
@@ -4779,15 +4782,22 @@ document.addEventListener('click',(e)=>{
   state.selectedId=pid;state.profileMonthCursor=new Date().toISOString();state.ui.view='profile';save();renderProfile();
 });
 
-// Collapse toggler function
+// Collapse toggler function — LOCAL ONLY, not shared via Firebase
+const COLLAPSE_KEY = 'vuTracker.collapsed';
+function getCollapseState(){
+  try{ return JSON.parse(localStorage.getItem(COLLAPSE_KEY))||{}; }catch{ return {}; }
+}
+function setCollapseState(c){
+  try{ localStorage.setItem(COLLAPSE_KEY, JSON.stringify(c)); }catch{}
+}
 function toggleCollapse(collapseKey){
-  state.ui.collapsed=state.ui.collapsed||{};
-  state.ui.collapsed[collapseKey]=!state.ui.collapsed[collapseKey];
-  save();
+  const c=getCollapseState();
+  c[collapseKey]=!c[collapseKey];
+  setCollapseState(c);
   applyCollapseState();
 }
 function applyCollapseState(){
-  const c=state.ui.collapsed||{};
+  const c=getCollapseState();
   // Map collapse keys to their specific panel-body IDs
   const bodyMap={basics:'basicInfo',training:'trainSnap',calendar:null,records:'discipline',notes:'notesList',leadership:'leadershipBody'};
   document.querySelectorAll('.panel-head[data-collapse]').forEach(hdr=>{
