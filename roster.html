@@ -177,7 +177,7 @@ function getLOAEnd(pid,loas){const now=Date.now();const a=loas.find(l=>l.personI
 function hasRole(p,role){
   if(p.priorityRole===role) return true;
   if(Array.isArray(p.crossTrain)&&p.crossTrain.includes(role)) return true;
-  if(p.training&&p.training.roles&&p.training.roles[role]&&p.training.roles[role].date) return true;
+  if(p.training&&p.training.roles&&p.training.roles[role]&&(p.training.roles[role].date||p.training.roles[role].done)) return true;
   return false;
 }
 
