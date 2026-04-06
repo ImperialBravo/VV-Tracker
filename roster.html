@@ -156,7 +156,7 @@
     <div class="legend-i"><div class="legend-s l-loa"></div>On LOA</div>
   </div>
 </div>
-<div class="footer">Read-only roster — updates live from the staff tracker</div>
+<div class="footer">Read-only roster — updates live from the staff tracker<br>Created by JuggsMcNuggs. Built with her A.I. Levi.</div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
@@ -195,7 +195,7 @@ function render(){
   let people=data.people.filter(p=>!p.archived);
   if(q) people=people.filter(p=>`${p.character||''} ${p.steamName||''} ${p.discord||''} ${p.stageName||''} ${p.employeeNumber||''} ${p.callsign||''}`.toLowerCase().includes(q));
   if(activeFilter!=='all') people=people.filter(p=>hasRole(p,activeFilter));
-  people.sort((a,b)=>{const na=parseInt(a.employeeNumber)||9999,nb=parseInt(b.employeeNumber)||9999;return na-nb;});
+  people.sort((a,b)=>{const ra=RANK_ORDER[a.rank]??99,rb=RANK_ORDER[b.rank]??99;if(ra!==rb)return ra-rb;const na=parseInt(a.employeeNumber)||9999,nb=parseInt(b.employeeNumber)||9999;return na-nb;});
   const totalActive=data.people.filter(p=>!p.archived).length;
   badge.style.display='';badge.textContent=totalActive+' Total Staff';legend.style.display='';
   if(!people.length){host.innerHTML='<div class="empty">No results found</div>';return;}
