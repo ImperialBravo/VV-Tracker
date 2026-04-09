@@ -5110,6 +5110,7 @@ function setRRFilter(f) {
 }
 
 function renderRentalRequests() {
+  if(!canEdit()){ toast('Supervisor+ required'); return; }
   hideAllViews();
   document.getElementById('rentalReqView').style.display = '';
   state.ui.view = 'rentalreq'; save();
@@ -5134,7 +5135,9 @@ function renderRentalRequests() {
     const statusColor = r.status==='approved' ? '#6aaa6a' : r.status==='denied' ? '#cc5a55' : '#c9a84c';
     const statusLabel = r.status.charAt(0).toUpperCase() + r.status.slice(1);
     const dateStr = r.event?.date || '—';
-    const timeStr = r.event?.time || '—';
+    const rawTime = r.event?.time || '';
+    let timeStr = '—';
+    if(rawTime) { const [hh,mm]=rawTime.split(':').map(Number); const ampm=hh>=12?'PM':'AM'; const h12=hh===0?12:hh>12?hh-12:hh; timeStr=h12+':'+(String(mm).padStart(2,'0'))+' '+ampm; }
     const dur = r.event?.duration ? r.event.duration + 'hr' : '—';
 
     html += '<div style="background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:10px;border-left:3px solid '+statusColor+'">';
@@ -5151,6 +5154,7 @@ function renderRentalRequests() {
     } else {
       html += '<button class="btn-ghost btn-sm" onclick="setRRStatus(&quot;'+r.id+'&quot;,&quot;pending&quot;)">Reset</button>';
     }
+    html += '<button class="btn-ghost btn-sm" style="color:#cc5a55;border-color:#cc5a5540" onclick="deleteRR(&quot;'+r.id+'&quot;)">Delete</button>';
     html += '</div></div>';
 
     // Detail grid
@@ -5232,6 +5236,12 @@ function rrChip(label, value) {
 function setRRStatus(id, status) {
   rrRef.child(id).update({ status });
   if(typeof audit === 'function') audit('Set rental request ' + id + ' to ' + status);
+}
+
+function deleteRR(id) {
+  if(!confirm('Delete this rental request? This cannot be undone.')) return;
+  rrRef.child(id).remove();
+  if(typeof audit === 'function') audit('Deleted rental request ' + id);
 }
 
 function adjustRRStaff(id, role, delta) {
