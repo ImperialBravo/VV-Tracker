@@ -5123,6 +5123,7 @@ function renderRentalRequests() {
   const pendingCount = requests.filter(r => r.status === 'pending').length;
   document.getElementById('rrCountBadge').textContent = totalCount + ' total, ' + pendingCount + ' pending';
 
+  const allRequests = requests.slice();
   if(rrFilter !== 'all') requests = requests.filter(r => r.status === rrFilter);
 
   if(!requests.length) {
@@ -5219,6 +5220,14 @@ function renderRentalRequests() {
         html += '<div style="margin-top:2px">'+escapeHtml(n.text)+'</div></div>';
       }
     }
+    const runByPerson = r.runBy ? (state.people||[]).find(p=>p.id===r.runBy) : null;
+    const runByName = runByPerson ? (runByPerson.character||runByPerson.steamName||'Unknown') : null;
+    html += '<div style="margin-bottom:12px"><div class="muted small" style="font-weight:700;margin-bottom:6px">Who\'s Running It</div>';
+    html += '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">';
+    if(runByName) html += '<span style="font-size:12px;padding:4px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--line);display:inline-flex;align-items:center;gap:4px">'+escapeHtml(runByName)+' <span style="cursor:pointer;color:var(--muted);font-size:10px" onclick="rrRef.child(&quot;'+r.id+'&quot;).update({runBy:null})">✕</span></span>';
+    html += '<div class="ac-wrap" style="flex:1;min-width:160px"><input id="rrRunBy-'+r.id+'" placeholder="Assign staff member..." style="width:100%;font-size:12px;padding:6px 10px"></div>';
+    html += '</div></div>';
+
     html += '<div style="display:flex;gap:6px;margin-top:6px">';
     html += '<textarea class="input" id="rrNote-'+r.id+'" placeholder="Add a note..." rows="3" style="flex:1;font-size:12px;padding:6px 10px;resize:vertical;min-height:60px;line-height:1.4"></textarea>';
     html += '<button class="btn-accent btn-sm" onclick="addRRNote(&quot;'+r.id+'&quot;)">Add</button>';
@@ -5227,6 +5236,12 @@ function renderRentalRequests() {
     html += '</div>';
   }
   body.innerHTML = html;
+  for(const r of allRequests){
+    if(!document.getElementById('rrRunBy-'+r.id)) continue;
+    setupAutocomplete('rrRunBy-'+r.id, (state.people||[]).filter(p=>!p.archived), (pid)=>{
+      rrRef.child(r.id).update({runBy:pid});
+    });
+  }
 }
 
 function rrChip(label, value) {
